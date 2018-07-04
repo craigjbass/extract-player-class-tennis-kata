@@ -11,11 +11,24 @@ class Player
   end
 
   def won_against?(other_player)
-    return false if @points < 4
-    normal_win = @points == 4 && other_player.points < 4
-    win_from_advantage = @points - other_player.points >= 2
+    return false if definitely_can_not_be_a_win?
 
-    normal_win || win_from_advantage
+    normal_win_against?(other_player) ||
+      win_from_advantage_against?(other_player)
+  end
+
+  private
+
+  def definitely_can_not_be_a_win?
+    @points < 4
+  end
+
+  def normal_win_against?(other_player)
+    @points == 4 && other_player.points < 4
+  end
+
+  def win_from_advantage_against?(other_player)
+    @points - other_player.points >= 2
   end
 end
 
@@ -32,7 +45,7 @@ class Tennis
 
   def score
     return 'Deuce' if deuce?
-    return "Advantage #{@player_one.name}" if advantage_player_one?
+    return "Advantage #{advantage_player.name}" unless advantage_player.nil?
     return a_win_for(the_winning_player) unless no_winner?
 
     side_by_side_points
@@ -44,10 +57,23 @@ class Tennis
     players.map(&:points).sum == 6
   end
 
-  def advantage_player_one?
-    difference = @player_one.points - @player_two.points == 1
-    at_least_deuce = players.map(&:points).reject { |p| p < 3 }.count == 2
-    difference && at_least_deuce
+  def at_least_deuce?
+    players.map(&:points).reject { |p| p < 3 }.count == 2
+  end
+
+  def find_better_player
+    pairs = players.zip(players.reverse)
+    pairs.select do |pair|
+      yield pair
+    end.dig(0, 0)
+  end
+
+  def advantage_player
+    return unless at_least_deuce?
+
+    find_better_player do |a, b|
+      a.points - b.points == 1
+    end
   end
 
   def players
@@ -60,10 +86,9 @@ class Tennis
   end
 
   def the_winning_player
-    pairs = players.zip(players.reverse)
-    pairs.select do |(a, b)|
+    find_better_player do |a, b|
       a.won_against?(b)
-    end.dig(0, 0)
+    end
   end
 
   def no_winner?
@@ -163,7 +188,7 @@ describe Tennis do
     expect_score('Advantage Merry', points: [1, 2, 1, 2, 1, 2, 1, 2, 1])
   end
 
-  xit 'can score win for Bill' do
+  it 'can score win for Bill' do
     expect_score('Advantage Bill', points: [2, 1, 2, 1, 2, 1, 2])
   end
 end
