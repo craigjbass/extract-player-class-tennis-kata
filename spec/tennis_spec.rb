@@ -12,9 +12,10 @@ class Player
 
   def won_against?(other_player)
     return false if @points < 4
-    return true if @points == 4 && other_player.points < 4
+    normal_win = @points == 4 && other_player.points < 4
+    win_from_advantage = @points - other_player.points >= 2
 
-    @points - other_player.points >= 2
+    normal_win || win_from_advantage
   end
 end
 
